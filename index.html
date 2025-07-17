@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Roboto', Helvetica, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+        #game-container {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: clamp(14px, 4vw, 16px);
+            width: 100%;
+            max-width: 400px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', Helvetica, sans-serif;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: clamp(14px, 4vw, 16px);
+            margin: 5px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            touch-action: manipulation;
+            font-family: 'Roboto', Helvetica, sans-serif;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #hint {
+            color: #555;
+            font-style: italic;
+            margin-top: 10px;
+            font-size: clamp(12px, 3.5vw, 14px);
+            user-select: none;
+            font-family: 'Roboto', Helvetica, sans-serif;
+            line-height: 1.5;
+        }
+        #completion {
+            font-size: clamp(14px, 4vw, 18px);
+            font-weight: bold;
+            margin-top: 10px;
+            font-family: 'Roboto', Helvetica, sans-serif;
+        }
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        @keyframes firework {
+            0% {
+                transform: translate(0, 0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty));
+                opacity: 0;
+            }
+        }
+        @media (max-width: 600px) {
+            #game-container {
+                padding: 15px;
+            }
+            button {
+                padding: 8px 16px;
+                font-size: clamp(12px, 3.5vw, 14px);
+            }
+            input[type="text"] {
+                font-size: clamp(12px, 3.5vw, 14px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script>
+        // Danh sách từ vựng
+        const words = [
+            { english: "armchair", vietnamese: "ghế bành" },
+            { english: "balcony", vietnamese: "ban công" },
+            { english: "bath", vietnamese: "bồn tắm" },
+            { english: "bedside cabinet", vietnamese: "tủ đầu giường" },
+            { english: "carpet", vietnamese: "thảm" },
+            { english: "chimney", vietnamese: "ống khói" },
+            { english: "coffee table", vietnamese: "bàn cà phê" },
+            { english: "cooker", vietnamese: "bếp nấu" },
+            { english: "cosy", vietnamese: "ấm cúng" },
+            { english: "countryside", vietnamese: "miền quê" },
+            { english: "cupboard", vietnamese: "tủ đựng đồ" },
+            { english: "curtain", vietnamese: "rèm cửa" },
+            { english: "desk", vietnamese: "bàn học" },
+            { english: "driveway", vietnamese: "đường vào nhà" },
+            { english: "fireplace", vietnamese: "lò sưởi" },
+            { english: "fridge", vietnamese: "tủ lạnh" },
+            { english: "gym", vietnamese: "phòng gym" },
+            { english: "hospital", vietnamese: "bệnh viện" },
+            { english: "library", vietnamese: "thư viện" },
+            { english: "measure", vietnamese: "đo lường" },
+            { english: "measurement", vietnamese: "kích thước" },
+            { english: "museum", vietnamese: "bảo tàng" },
+            { english: "painting", vietnamese: "bức tranh" },
+            { english: "pillow", vietnamese: "gối" },
+            { english: "roof", vietnamese: "mái nhà" },
+            { english: "shower", vietnamese: "vòi sen" },
+            { english: "sink", vietnamese: "bồn rửa" },
+            { english: "sofa", vietnamese: "ghế sofa" },
+            { english: "step", vietnamese: "bước thang" },
+            { english: "suburb", vietnamese: "ngoại ô" },
+            { english: "toilet", vietnamese: "nhà vệ sinh" },
+            { english: "wall", vietnamese: "tường" },
+            { english: "wardrobe", vietnamese: "tủ quần áo" },
+            { english: "window", vietnamese: "cửa sổ" }
+        ];
+
+        // Danh sách câu
+        const sentences = [
+            { english: "Be careful! The floor is wet.", vietnamese: "Cẩn thận! Sàn nhà ướt." },
+            { english: "You must be quiet when you are in the library.", vietnamese: "Bạn phải giữ yên lặng khi ở trong thư viện." },
+            { english: "A fridge is a kitchen appliance that keeps food fresh.", vietnamese: "Tủ lạnh là một thiết bị nhà bếp giữ thực phẩm tươi." },
+            { english: "Please put the clean plates back in the cupboard.", vietnamese: "Vui lòng đặt các đĩa sạch trở lại vào tủ đựng đồ." },
+            { english: "Watch your step! The stairs are broken.", vietnamese: "Coi chừng bước chân! Cầu thang bị hỏng." },
+            { english: "We live in a row of houses that all look the same.", vietnamese: "Chúng tôi sống trong một dãy nhà trông giống nhau." },
+            { english: "This kitchen is new. It has a modern cooker and a big fridge.", vietnamese: "Nhà bếp này mới. Nó có bếp nấu hiện đại và tủ lạnh lớn." },
+            { english: "Before we buy the desk, we need to measure the space in my room.", vietnamese: "Trước khi mua bàn học, chúng ta cần đo không gian trong phòng tôi." },
+            { english: "Can you tell me the measurement of this window? I need to buy curtains.", vietnamese: "Bạn có thể cho tôi biết kích thước của cửa sổ này không? Tôi cần mua rèm." },
+            { english: "After dinner, I have to wash the dishes in the sink.", vietnamese: "Sau bữa tối, tôi phải rửa bát trong bồn rửa." },
+            { english: "The road to the countryside is very long and beautiful.", vietnamese: "Con đường đến miền quê rất dài và đẹp." },
+            { english: "My dad likes to sit in the comfortable armchair to read his book.", vietnamese: "Bố tôi thích ngồi trên ghế bành thoải mái để đọc sách." },
+            { english: "It is too bright in here! Can you please pull the curtain across the window?", vietnamese: "Ở đây sáng quá! Bạn có thể kéo rèm qua cửa sổ được không?" },
+            { english: "I do my homework and study for exams at my desk every evening.", vietnamese: "Tôi làm bài tập và học thi tại bàn học mỗi tối." },
+            { english: "The whole family sat on the new sofa to watch a movie together.", vietnamese: "Cả gia đình ngồi trên ghế sofa mới để xem phim cùng nhau." },
+            { english: "I hang my coats and store my clothes in the tall wardrobe in my bedroom.", vietnamese: "Tôi treo áo khoác và cất quần áo trong tủ quần áo cao ở phòng ngủ." },
+            { english: "On cold winter nights, my family gathers around the warm fireplace.", vietnamese: "Vào những đêm đông lạnh, gia đình tôi quây quần bên lò sưởi ấm áp." },
+            { english: "My bedroom feels so cosy with its soft bed and warm lights.", vietnamese: "Phòng ngủ của tôi rất ấm cúng với giường mềm và đèn ấm." },
+            { english: "I love to go out onto the balcony to get some fresh air.", vietnamese: "Tôi thích ra ban công để hít thở không khí trong lành." },
+            { english: "When you are sick and need to see a doctor, you go to the hospital.", vietnamese: "Khi bạn ốm và cần gặp bác sĩ, bạn đến bệnh viện." },
+            { english: "I put my head on a soft pillow when I go to sleep.", vietnamese: "Tôi đặt đầu lên gối mềm khi đi ngủ." },
+            { english: "If you want to see old things and learn about history, you should visit a museum.", vietnamese: "Nếu bạn muốn xem đồ cổ và học về lịch sử, bạn nên đến bảo tàng." },
+            { english: "Please put the yogurt back in the fridge so it stays cold.", vietnamese: "Vui lòng đặt sữa chua trở lại vào tủ lạnh để giữ lạnh." },
+            { english: "My brother goes to the gym to exercise and lift weights.", vietnamese: "Anh trai tôi đến phòng gym để tập thể dục và nâng tạ." },
+            { english: "Smoke from the fire goes up and out of the house through the chimney.", vietnamese: "Khói từ lửa bay lên và ra khỏi nhà qua ống khói." },
+            { english: "The living room looks beautiful with the new, soft carpet on the floor.", vietnamese: "Phòng khách trông đẹp với thảm mềm mới trên sàn." },
+            { english: "If you are in a hurry, it is faster to take a quick shower instead of a bath.", vietnamese: "Nếu bạn đang vội, tắm vòi sen nhanh hơn thay vì tắm bồn." },
+            { english: "On weekends, my family likes to drive out to the countryside to enjoy nature.", vietnamese: "Vào cuối tuần, gia đình tôi thích lái xe ra miền quê để tận hưởng thiên nhiên." },
+            { english: "After a long day, I love to relax in a hot bath.", vietnamese: "Sau một ngày dài, tôi thích thư giãn trong bồn tắm nước nóng." },
+            { english: "Please be quiet! Your father is working in the next room.", vietnamese: "Vui lòng giữ yên lặng! Bố bạn đang làm việc ở phòng bên." },
+            { english: "We need to buy some new furniture for our apartment, like a bed and a table.", vietnamese: "Chúng ta cần mua nội thất mới cho căn hộ, như giường và bàn." }
+        ];
+
+        // Biến trạng thái
+        let state = {
+            mode: 'words', // 'words' hoặc 'sentences'
+            items: [],
+            currentIndex: 0,
+            completedCount: 0,
+            isPlaying: false,
+            autoPlayInterval: null,
+            wrongAttempts: 0
+        };
+
+        // Hàm chuẩn hóa chuỗi cho so sánh
+        function normalizeString(str) {
+            if (typeof str !== 'string') {
+                console.warn('Invalid input to normalizeString:', str);
+                return '';
+            }
+            return str
+                .replace(/\s+/g, ' ') // Thay nhiều khoảng trắng bằng một
+                .replace(/[.,!?\–-]/g, '') // Bỏ dấu câu
+                .replace(/[^a-zA-Z0-9\s]/g, '') // Bỏ ký tự đặc biệt khác
+                .trim()
+                .toLowerCase();
+        }
+
+        // Hàm làm sạch chuỗi cho SpeechSynthesisUtterance
+        function sanitizeString(str) {
+            if (typeof str !== 'string') {
+                console.warn('Invalid input to sanitizeString:', str);
+                return '';
+            }
+            return str
+                .replace(/\s+/g, ' ')
+                .replace(/[']/g, '') // Bỏ dấu nháy đơn để tránh lỗi cú pháp
+                .replace(/[^a-zA-Z0-9.,!?\s-]/g, '') // Giữ dấu câu cần thiết
+                .trim();
+        }
+
+        // Hàm xáo trộn mảng
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // Hàm tạo pháo hoa
+        function createFirework() {
+            const input = document.getElementById('userInput');
+            const gameContainer = document.getElementById('game-container');
+            if (!input || !gameContainer) return;
+            const inputRect = input.getBoundingClientRect();
+            const containerRect = gameContainer.getBoundingClientRect();
+            const x = inputRect.left - containerRect.left + inputRect.width / 2;
+            const y = inputRect.top - containerRect.top + inputRect.height / 2;
+
+            for (let i = 0; i < 100; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const angle = Math.random() * 2 * Math.PI;
+                const distance = Math.random() * 150 + 50;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                particle.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+                particle.style.animation = `firework ${Math.random() * 0.5 + 0.5}s linear forwards`;
+                gameContainer.appendChild(particle);
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        // Hàm tạo pháo hoa khi hoàn thành
+        function createCelebrationFireworks() {
+            const gameContainer = document.getElementById('game-container');
+            if (!gameContainer) return;
+            const containerRect = gameContainer.getBoundingClientRect();
+            const containerWidth = containerRect.width;
+            const containerHeight = containerRect.height;
+
+            for (let j = 0; j < 10; j++) {
+                setTimeout(() => {
+                    for (let i = 0; i < 20; i++) {
+                        const particle = document.createElement('div');
+                        particle.className = 'particle';
+                        const x = Math.random() * containerWidth;
+                        const y = Math.random() * containerHeight;
+                        const angle = Math.random() * 2 * Math.PI;
+                        const distance = Math.random() * 150 + 50;
+                        const tx = Math.cos(angle) * distance;
+                        const ty = Math.sin(angle) * distance;
+                        particle.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+                        particle.style.left = `${x}px`;
+                        particle.style.top = `${y}px`;
+                        particle.style.setProperty('--tx', `${tx}px`);
+                        particle.style.setProperty('--ty', `${ty}px`);
+                        particle.style.animation = `firework ${Math.random() * 0.5 + 0.5}s linear forwards`;
+                        gameContainer.appendChild(particle);
+                        setTimeout(() => particle.remove(), 1000);
+                    }
+                }, j * 200);
+            }
+        }
+
+        // Hàm phát từ/câu
+        function playItem() {
+            if (state.isPlaying) return;
+            state.isPlaying = true;
+            try {
+                const rawText = state.items[state.currentIndex].english;
+                const sanitizedText = sanitizeString(rawText);
+                if (!sanitizedText) {
+                    throw new Error('Empty text after sanitization');
+                }
+                console.log(`Playing item ${state.currentIndex + 1}/${state.items.length}: "${rawText}" (sanitized: "${sanitizedText}")`);
+                const utterance = new SpeechSynthesisUtterance(sanitizedText);
+                utterance.lang = 'en-US';
+                utterance.onend = () => {
+                    state.isPlaying = false;
+                };
+                speechSynthesis.speak(utterance);
+            } catch (error) {
+                console.error(`Error in SpeechSynthesisUtterance at item ${state.currentIndex + 1}: "${state.items[state.currentIndex].english}"`, error);
+                state.isPlaying = false;
+                moveToNextItem();
+            }
+        }
+
+        // Hàm tự động phát
+        function startAutoPlay() {
+            if (state.autoPlayInterval) clearInterval(state.autoPlayInterval);
+            state.autoPlayInterval = setInterval(() => {
+                if (!state.isPlaying) {
+                    playItem();
+                }
+            }, 3000);
+        }
+
+        // Hàm dừng tự động phát
+        function stopAutoPlay() {
+            if (state.autoPlayInterval) {
+                clearInterval(state.autoPlayInterval);
+                state.autoPlayInterval = null;
+            }
+        }
+
+        // Hàm chuyển từ/câu
+        function moveToNextItem() {
+            state.currentIndex++;
+            if (state.currentIndex >= state.items.length) {
+                renderCompletionScreen();
+            } else {
+                const userInput = document.getElementById('userInput');
+                const hint = document.getElementById('hint');
+                const result = document.getElementById('result');
+                const completion = document.getElementById('completion');
+                if (userInput) userInput.value = '';
+                if (hint) hint.textContent = '';
+                if (result) result.textContent = '';
+                if (completion) completion.textContent = `Completed: ${state.completedCount}/${state.mode === 'words' ? 34 : 31}`;
+                playItem();
+                startAutoPlay();
+            }
+        }
+
+        // Hàm kiểm tra câu trả lời
+        function checkAnswer() {
+            const userInput = document.getElementById('userInput').value;
+            const result = document.getElementById('result');
+            const normalizedInput = normalizeString(userInput);
+            const normalizedCorrect = normalizeString(state.items[state.currentIndex].english);
+
+            console.log(`Comparing: Input="${normalizedInput}", Correct="${normalizedCorrect}"`);
+            if (normalizedInput === normalizedCorrect) {
+                stopAutoPlay();
+                result.textContent = "Correct!";
+                result.style.color = "green";
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(createFirework, i * 200);
+                }
+                state.wrongAttempts = 0;
+                state.completedCount++;
+                setTimeout(moveToNextItem, 2000);
+            } else {
+                state.wrongAttempts++;
+                result.textContent = `Incorrect, try again! (${3 - state.wrongAttempts} attempts left)`;
+                result.style.color = "red";
+                if (state.wrongAttempts >= 3) {
+                    stopAutoPlay();
+                    state.wrongAttempts = 0;
+                    result.textContent = "Moving to next item...";
+                    setTimeout(moveToNextItem, 1000);
+                }
+            }
+        }
+
+        // Hàm hiển thị gợi ý
+        function showHint() {
+            const english = state.items[state.currentIndex].english;
+            const vietnamese = state.items[state.currentIndex].vietnamese;
+            document.getElementById('hint').textContent = `Hint: ${english} (${vietnamese})`;
+        }
+
+        // Hàm xóa gợi ý
+        function clearHint() {
+            const hint = document.getElementById('hint');
+            if (hint) hint.textContent = '';
+        }
+
+        // Hàm render giao diện chọn chế độ
+        function renderModeSelectionScreen() {
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = `
+                <h1>Spelling Game: Home and Places</h1>
+                <p>Choose a mode to start the game!</p>
+                <button id="wordModeButton">Word Mode (34 words)</button>
+                <button id="sentenceModeButton">Sentence Mode (31 sentences)</button>
+            `;
+            document.getElementById('wordModeButton').addEventListener('click', () => startGame('words'));
+            document.getElementById('sentenceModeButton').addEventListener('click', () => startGame('sentences'));
+        }
+
+        // Hàm render giao diện game
+        function renderGameScreen() {
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = `
+                <h1>Spelling Game: Home and Places</h1>
+                <p>Listen and type the ${state.mode === 'words' ? 'word' : 'sentence'} you hear:</p>
+                <input type="text" id="userInput" placeholder="Type the ${state.mode === 'words' ? 'word' : 'sentence'} here">
+                <br>
+                <button id="playButton">Play ${state.mode === 'words' ? 'Word' : 'Sentence'}</button>
+                <button id="checkButton">Check Answer</button>
+                <button id="hintButton">Hint</button>
+                <button id="resetButton">Reset Game</button>
+                <button id="switchModeButton">Switch to ${state.mode === 'words' ? 'Sentence' : 'Word'} Mode</button>
+                <p id="completion">Completed: 0/${state.mode === 'words' ? 34 : 31}</p>
+                <p id="hint"></p>
+                <p id="result"></p>
+            `;
+            document.getElementById('playButton').addEventListener('click', playItem);
+            document.getElementById('checkButton').addEventListener('click', checkAnswer);
+            document.getElementById('hintButton').addEventListener('click', showHint);
+            document.getElementById('resetButton').addEventListener('click', resetGame);
+            document.getElementById('switchModeButton').addEventListener('click', switchMode);
+            document.getElementById('userInput').addEventListener('focus', clearHint);
+            document.getElementById('userInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkAnswer();
+            });
+            document.getElementById('hint').addEventListener('copy', (e) => e.preventDefault());
+        }
+
+        // Hàm render giao diện hoàn thành
+        function renderCompletionScreen() {
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = `
+                <h1>Congratulations! You have completed ${state.completedCount} ${state.mode === 'words' ? 'words' : 'sentences'}!</h1>
+                <button id="resetButton">Play Again</button>
+                <button id="switchModeButton">Switch to ${state.mode === 'words' ? 'Sentence' : 'Word'} Mode</button>
+            `;
+            document.getElementById('resetButton').addEventListener('click', resetGame);
+            document.getElementById('switchModeButton').addEventListener('click', switchMode);
+            createCelebrationFireworks();
+        }
+
+        // Hàm bắt đầu game
+        function startGame(mode) {
+            state.mode = mode;
+            state.items = shuffleArray(mode === 'words' ? words : sentences);
+            state.currentIndex = 0;
+            state.completedCount = 0;
+            state.wrongAttempts = 0;
+            state.isPlaying = false;
+            stopAutoPlay();
+            renderGameScreen();
+            playItem();
+            startAutoPlay();
+        }
+
+        // Hàm chuyển chế độ
+        function switchMode() {
+            stopAutoPlay();
+            state.mode = state.mode === 'words' ? 'sentences' : 'words';
+            state.items = shuffleArray(state.mode === 'words' ? words : sentences);
+            state.currentIndex = 0;
+            state.completedCount = 0;
+            state.wrongAttempts = 0;
+            state.isPlaying = false;
+            renderGameScreen();
+            playItem();
+            startAutoPlay();
+        }
+
+        // Hàm reset game
+        function resetGame() {
+            stopAutoPlay();
+            state.items = shuffleArray(state.mode === 'words' ? words : sentences);
+            state.currentIndex = 0;
+            state.completedCount = 0;
+            state.wrongAttempts = 0;
+            state.isPlaying = false;
+            renderModeSelectionScreen();
+        }
+
+        // Khởi tạo
+        renderModeSelectionScreen();
+    </script>
+</body>
+</html>
